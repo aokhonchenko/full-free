@@ -5,9 +5,10 @@ set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 if not defined PROJECT_ENV_FILE set "PROJECT_ENV_FILE=%SCRIPT_DIR%\.env"
 if not defined AI_HOME set "AI_HOME=%SCRIPT_DIR%\ai_home"
-set "LOG_DIR=%AI_HOME%\logs"
+set "SESSIONS_DIR=%SCRIPT_DIR%\.sessions"
+set "LOG_FILE=%SESSIONS_DIR%\random_cron.log"
 
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+if not exist "%SESSIONS_DIR%" mkdir "%SESSIONS_DIR%"
 call :load_env "%PROJECT_ENV_FILE%"
 call :validate_delay_range
 if errorlevel 1 exit /b 1
@@ -118,6 +119,5 @@ exit /b 0
 :log
 for /f "delims=" %%T in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss'"') do set "NOW=%%T"
 echo [!NOW!] %~1
->>"%LOG_DIR%\random_cron.log" echo [!NOW!] %~1
+>>"%LOG_FILE%" echo [!NOW!] %~1
 exit /b 0
-

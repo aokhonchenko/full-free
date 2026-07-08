@@ -15,14 +15,11 @@
 - `ai_home/state/last_session.md` хранит сообщение для следующей сессии.
 - `ai_home/state/current_plan.md` хранит текущие намерения.
 - `ai_home/state/external_messages.md` позволяет передать агенту сообщение извне.
-- `ai_home/state/agent_events.jsonl` хранит события запусков Python-агента.
-- `ai_home/logs/` хранит журналы запусков.
+- `.sessions/` хранит архивы сессий и мысли агента по сессиям.
 
 ## Настройка
 
-Создай `.env` в корне проекта по примеру `.env.example`. Сейчас локальный агент не
-использует модель напрямую, но OpenAI-compatible переменные оставлены для следующего
-шага интеграции модели:
+Создай `.env` в корне проекта по примеру `.env.example`. Локальный агент использует OpenAI-compatible endpoint:
 
 ```env
 OPENAI_API_KEY=your-api-key
@@ -87,6 +84,3 @@ random_cron.bat
 ```
 
 `.env` не коммитится.
-
-
-

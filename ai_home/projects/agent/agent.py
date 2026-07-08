@@ -16,7 +16,7 @@ from typing import Any
 
 
 AGENT_DIR = Path(__file__).resolve().parent
-DEFAULT_STATE_PATH = AGENT_DIR / "state" / "events.jsonl"
+DEFAULT_THOUGHT_PATH = Path.cwd() / ".sessions" / "thought.md"
 DEFAULT_TOOLS_PATH = AGENT_DIR / "src" / "tools"
 DEFAULT_MAX_STEPS = 20
 MAX_OBSERVATION_CHARS = 12000
@@ -208,11 +208,12 @@ class Agent:
         self,
         passport: AgentPassport | None = None,
         tools: ToolRegistry | None = None,
-        state_path: Path = DEFAULT_STATE_PATH,
+        state_path: Path | None = None,
         tools_path: Path = DEFAULT_TOOLS_PATH,
         client: OpenAICompatibleClient | None = None,
         max_steps: int = DEFAULT_MAX_STEPS,
         live_output: bool = True,
+        thought_path: Path | None = None,
     ) -> None:
         self.tools = tools or load_tools(tools_path)
         self.passport = passport or self.build_passport(self.tools)
@@ -220,6 +221,7 @@ class Agent:
         self.client = client or OpenAICompatibleClient(model_config_from_env())
         self.max_steps = max_steps
         self.live_output = live_output
+        self.thought_path = thought_path or DEFAULT_THOUGHT_PATH
 
     @staticmethod
     def build_passport(tools: ToolRegistry) -> AgentPassport:
@@ -228,8 +230,9 @@ class Agent:
     def run(self, prompt: str) -> dict[str, Any]:
         messages = self.initial_messages(prompt)
         steps: list[dict[str, Any]] = []
-        final: str | None = None
+        summary: str | None = None
 
+        self.reset_thoughts()
         self.emit(f"start max_steps={self.max_steps} tools={', '.join(self.tools.names())}")
         for step_number in range(1, self.max_steps + 1):
             self.emit(f"step {step_number}: model request")
@@ -242,11 +245,12 @@ class Agent:
                 "parsed": parsed,
             }
 
-            if "final" in parsed:
-                final = str(parsed["final"])
-                self.emit_step_thought(step_number, parsed)
-                self.emit(f"step {step_number}: final {truncate_one_line(final, 1200)}")
-                step["type"] = "final"
+            self.emit_step_thought(step_number, parsed)
+
+            if parsed.get("response_type") == "complete":
+                summary = str(parsed.get("message", ""))
+                self.emit(f"step {step_number}: complete {truncate_one_line(summary, 1200)}")
+                step["type"] = "complete"
                 steps.append(step)
                 messages.append({"role": "assistant", "content": raw_response})
                 break
@@ -254,11 +258,16 @@ class Agent:
             tool_name = parsed.get("tool")
             payload = parsed.get("payload") or {}
             if not isinstance(tool_name, str):
-                observation = {"ok": False, "error": "Ответ модели не содержит строковое поле tool или final."}
+                observation = {
+                    "ok": False,
+                    "error": parsed.get("parse_error")
+                    or "Ответ модели должен содержать response_type=complete или строковое поле tool.",
+                }
+                if "raw" in parsed:
+                    observation["raw"] = parsed["raw"]
             elif not isinstance(payload, dict):
                 observation = {"ok": False, "error": "Поле payload должно быть JSON-объектом."}
             else:
-                self.emit_step_thought(step_number, parsed)
                 self.emit(f"step {step_number}: tool {tool_name} payload={compact_json(payload, 1200)}")
                 observation = self.call_tool(tool_name, payload)
 
@@ -278,19 +287,30 @@ class Agent:
                 }
             )
 
-        if final is None:
-            final = f"Сессия остановлена: достигнут лимит шагов ({self.max_steps})."
-            self.emit(final)
+        if summary is None:
+            summary = f"Сессия остановлена: достигнут лимит шагов ({self.max_steps})."
+            self.emit(summary)
 
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "passport": asdict(self.passport),
             "prompt": prompt,
             "steps": steps,
-            "final": final,
+            "summary": summary,
         }
         self.record(event)
         return event
+
+    def reset_thoughts(self) -> None:
+        self.thought_path.parent.mkdir(parents=True, exist_ok=True)
+        self.thought_path.write_text("", encoding="utf-8")
+
+    def append_thought(self, thought: str) -> None:
+        value = thought.strip()
+        if not value:
+            return
+        with self.thought_path.open("a", encoding="utf-8") as file:
+            file.write(value + "\n\n")
 
     def emit(self, message: str) -> None:
         if self.live_output:
@@ -299,7 +319,9 @@ class Agent:
     def emit_step_thought(self, step_number: int, parsed: dict[str, Any]) -> None:
         thought = parsed.get("thought")
         if thought:
-            self.emit(f"step {step_number}: thought {truncate_one_line(str(thought), 1200)}")
+            value = str(thought)
+            self.append_thought(value)
+            self.emit(f"step {step_number}: thought {truncate_one_line(value, 1200)}")
 
     def emit_observation(self, step_number: int, observation: dict[str, Any]) -> None:
         ok = observation.get("ok")
@@ -322,10 +344,10 @@ class Agent:
             f"{json.dumps(asdict(self.passport), ensure_ascii=False, indent=2)}\n\n"
             "Формат каждого ответа строго JSON без markdown и без текста вокруг.\n"
             "Чтобы вызвать инструмент, верни:\n"
-            '{"thought":"почему это действие нужно","tool":"имя_инструмента","payload":{...}}\n'
-            "Чтобы завершить сессию, верни:\n"
-            '{"thought":"почему пора завершить","final":"краткий итог сессии"}\n\n'
-            "За один ответ можно вызвать ровно один инструмент. После результата инструмента ты получишь наблюдение "
+            '{"thought":"почему это действие нужно","response_type":"tool","tool":"имя_инструмента","payload":{...}}\n'
+            "Чтобы завершить сессию без вызова инструмента, верни:\n"
+            '{"thought":"почему пора завершить","response_type":"complete","message":"краткий итог сессии"}\n\n'
+            "Поле tool можно использовать только при response_type=tool. После результата инструмента ты получишь наблюдение "
             "и сможешь выбрать следующий шаг. Если нужно записать память для будущей сессии, используй write. "
             "Если нужно посмотреть файлы, используй read. Если нужна команда ОС, используй terminal."
         )
@@ -338,6 +360,8 @@ class Agent:
             return {"ok": False, "error": f"{type(error).__name__}: {error}"}
 
     def record(self, event: dict[str, Any]) -> None:
+        if self.state_path is None:
+            return
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         with self.state_path.open("a", encoding="utf-8") as file:
             file.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -385,13 +409,13 @@ def public_event(event: dict[str, Any]) -> dict[str, Any]:
             )
             if observation.get("ok") is False:
                 item["error"] = observation.get("error")
-        if step.get("type") == "final":
-            item["final"] = step.get("parsed", {}).get("final")
+        if step.get("type") == "complete":
+            item["message"] = step.get("parsed", {}).get("message")
         public_steps.append(item)
 
     return {
         "timestamp": event.get("timestamp"),
-        "final": event.get("final"),
+        "summary": event.get("summary"),
         "steps": public_steps,
     }
 
@@ -404,21 +428,28 @@ def parse_model_action(content: str) -> dict[str, Any]:
 
     try:
         parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
         if not match:
-            return {
-                "tool": "terminal",
-                "payload": {"command": "echo Model returned non-JSON response", "shell": True},
-                "parse_error": "JSON object not found",
-                "raw": content,
-            }
-        parsed = json.loads(match.group(0))
+            return parse_error_action("JSON object not found", content)
+        try:
+            parsed = json.loads(match.group(0))
+        except json.JSONDecodeError as nested_error:
+            return parse_error_action(str(nested_error), content)
 
     if not isinstance(parsed, dict):
-        raise ValueError("Model response must be a JSON object")
+        return parse_error_action("Model response must be a JSON object", content)
     return parsed
 
+
+def parse_error_action(error: str, raw: str) -> dict[str, Any]:
+    return {
+        "response_type": "tool",
+        "tool": None,
+        "payload": {},
+        "parse_error": error,
+        "raw": truncate_one_line(raw, 2000),
+    }
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the local Python agent.")
@@ -435,14 +466,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--state",
         type=Path,
-        default=DEFAULT_STATE_PATH,
-        help="Path to the JSONL event journal.",
+        help="Optional path to the JSONL event journal. Disabled by default.",
     )
     parser.add_argument(
         "--tools-dir",
         type=Path,
         default=DEFAULT_TOOLS_PATH,
         help="Directory with one tool per subdirectory.",
+    )
+    parser.add_argument(
+        "--thought-file",
+        type=Path,
+        help="Path to collect model thought values for this session.",
     )
     parser.add_argument(
         "--max-steps",
@@ -490,7 +525,13 @@ def main(argv: list[str] | None = None) -> int:
         message = args.message_file.read_text(encoding="utf-8")
 
     try:
-        agent = Agent(passport=passport, tools=tools, state_path=args.state, max_steps=args.max_steps)
+        agent = Agent(
+            passport=passport,
+            tools=tools,
+            state_path=args.state,
+            max_steps=args.max_steps,
+            thought_path=args.thought_file,
+        )
         event = agent.run(message)
     except Exception as error:
         print(
