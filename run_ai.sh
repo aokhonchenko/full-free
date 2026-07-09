@@ -70,12 +70,14 @@ archive_thoughts() {
 }
 
 archive_last_session() {
-    if [ ! -f "$STATE_DIR/last_session.md" ]; then
-        echo "last_session.md not found: $STATE_DIR/last_session.md" >&2
+    local source_file="$AI_ROOT/ai_home/state/last_session.md"
+
+    if [ ! -f "$source_file" ]; then
+        echo "last_session.md not found: $source_file" >&2
         return 1
     fi
     echo "Saving last_session.md to .sessions/session-$NEXT_SESSION.md"
-    cp -f "$STATE_DIR/last_session.md" "$SESSIONS_DIR/session-$NEXT_SESSION.md"
+    cp -f "$source_file" "$SESSIONS_DIR/session-$NEXT_SESSION.md"
 }
 
 run_with_agent() {

@@ -78,12 +78,13 @@ exit /b %ERRORLEVEL%
 
 :archive_last_session
 if not exist "%SESSIONS_DIR%" mkdir "%SESSIONS_DIR%"
-if not exist "%STATE_DIR%\last_session.md" (
-    echo last_session.md not found: %STATE_DIR%\last_session.md
+set "LAST_SESSION_FILE=%AI_ROOT%\ai_home\state\last_session.md"
+if not exist "%LAST_SESSION_FILE%" (
+    echo last_session.md not found: %LAST_SESSION_FILE%
     exit /b 1
 )
 echo Saving last_session.md to .sessions\session-%NEXT_SESSION%.md
-copy /Y "%STATE_DIR%\last_session.md" "%SESSIONS_DIR%\session-%NEXT_SESSION%.md" >nul
+copy /Y "%LAST_SESSION_FILE%" "%SESSIONS_DIR%\session-%NEXT_SESSION%.md" >nul
 exit /b %ERRORLEVEL%
 
 :load_env
