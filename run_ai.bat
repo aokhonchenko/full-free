@@ -16,6 +16,7 @@ if not defined VALID_METHOD (
 
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+if not defined AI_ROOT set "AI_ROOT=%SCRIPT_DIR%"
 if not defined PROJECT_ENV_FILE set "PROJECT_ENV_FILE=%SCRIPT_DIR%\.env"
 if not defined AI_HOME set "AI_HOME=%SCRIPT_DIR%\ai_home"
 if not defined SYSTEM_PROMPT_FILE set "SYSTEM_PROMPT_FILE=%SCRIPT_DIR%\SYSTEM_PROMPT.md"
