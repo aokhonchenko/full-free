@@ -52,6 +52,7 @@ class ModelConfig:
     model: str
     temperature: float = 0.7
     max_tokens: int | None = None
+    request_timeout: float = 1200
 
 
 class ToolRegistry:
@@ -147,6 +148,7 @@ def model_config_from_env() -> ModelConfig:
     temperature = float(os.environ.get("AGENT_TEMPERATURE", "0.7"))
     max_tokens_value = os.environ.get("AGENT_MAX_TOKENS", "").strip()
     max_tokens = int(max_tokens_value) if max_tokens_value else None
+    request_timeout = float(os.environ.get("AGENT_REQUEST_TIMEOUT_SECONDS", "1200"))
 
     return ModelConfig(
         api_key=api_key,
@@ -154,6 +156,7 @@ def model_config_from_env() -> ModelConfig:
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
+        request_timeout=request_timeout,
     )
 
 
@@ -183,7 +186,7 @@ class OpenAICompatibleClient:
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(request, timeout=self.config.request_timeout) as response:
                 response_body = response.read().decode("utf-8")
         except urllib.error.HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
