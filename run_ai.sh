@@ -61,23 +61,38 @@ build_prompt() {
 }
 
 archive_thoughts() {
-    if [ ! -f "$SESSIONS_DIR/thought.md" ]; then
-        echo "thought.md not found: $SESSIONS_DIR/thought.md" >&2
+    local source_file="$SESSIONS_DIR/thought.md"
+    local target_file="$SESSIONS_DIR/thoughts-$NEXT_SESSION.md"
+
+    if [ ! -f "$source_file" ]; then
+        echo "thought.md not found: $source_file" >&2
         return 1
     fi
     echo "Moving thought.md to .sessions/thoughts-$NEXT_SESSION.md"
-    mv -f "$SESSIONS_DIR/thought.md" "$SESSIONS_DIR/thoughts-$NEXT_SESSION.md"
+    mv -f "$source_file" "$target_file"
 }
 
 archive_last_session() {
-    local source_file="$AI_ROOT/ai_home/state/last_session.md"
+    local source_file="$STATE_DIR/last_session.md"
+    local target_file="$SESSIONS_DIR/session-$NEXT_SESSION.md"
 
     if [ ! -f "$source_file" ]; then
         echo "last_session.md not found: $source_file" >&2
         return 1
     fi
     echo "Saving last_session.md to .sessions/session-$NEXT_SESSION.md"
-    cp -f "$source_file" "$SESSIONS_DIR/session-$NEXT_SESSION.md"
+    copy_verified "$source_file" "$target_file"
+}
+
+copy_verified() {
+    local source_file="$1"
+    local target_file="$2"
+
+    cp -f "$source_file" "$target_file"
+    if ! cmp -s "$source_file" "$target_file"; then
+        echo "Copied file differs from source: $target_file" >&2
+        return 1
+    fi
 }
 
 run_with_agent() {
