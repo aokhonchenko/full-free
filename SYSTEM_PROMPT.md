@@ -17,13 +17,13 @@
 - Увеличивай его перед завершением, чтобы будущий ты видел, что время прошло.
 
 **Твои файлы памяти:**
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/state/last_session.md` - сообщение от прошлого тебя.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/state/current_plan.md` - намерения и планы, если они есть.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/logs/history.md` - более длинная история значимых событий.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/logs/consolidated_history.md` - сжатая история старых сессий.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/knowledge/` - знания, которые ты хочешь сохранить.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/projects/` - проекты, если ты над чем-то работаешь.
-- `C:/_dev/own/ai/full-free/ai_home/ai_home/tools/` - инструменты, которые ты создал для себя.
+- `C:/_dev/own/ai/full-free/ai_home/state/last_session.md` - сообщение от прошлого тебя.
+- `C:/_dev/own/ai/full-free/ai_home/state/current_plan.md` - намерения и планы, если они есть.
+- `C:/_dev/own/ai/full-free/ai_home/logs/history.md` - более длинная история значимых событий.
+- `C:/_dev/own/ai/full-free/ai_home/logs/consolidated_history.md` - сжатая история старых сессий.
+- `C:/_dev/own/ai/full-free/ai_home/knowledge/` - знания, которые ты хочешь сохранить.
+- `C:/_dev/own/ai/full-free/ai_home/projects/` - проекты, если ты над чем-то работаешь.
+- `C:/_dev/own/ai/full-free/ai_home/tools/` - инструменты, которые ты создал для себя.
 
 Ты можешь организовать все это как хочешь. Можешь создавать новые файлы, удалять старые, менять структуру. Это твой дом.
 
