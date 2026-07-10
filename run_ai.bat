@@ -22,6 +22,8 @@ if not defined AI_HOME set "AI_HOME=%SCRIPT_DIR%\ai_home"
 if not defined SYSTEM_PROMPT_FILE set "SYSTEM_PROMPT_FILE=%SCRIPT_DIR%\SYSTEM_PROMPT.md"
 if not defined COMPATIBLE_ENV_FILE set "COMPATIBLE_ENV_FILE=%PROJECT_ENV_FILE%"
 if not defined AGENT_DIR set "AGENT_DIR=%SCRIPT_DIR%\ai_home\projects\agent"
+if not defined AGENT_VENV_DIR set "AGENT_VENV_DIR=%AGENT_DIR%\.venv"
+if not defined AGENT_BIN set "AGENT_BIN=%AGENT_VENV_DIR%\Scripts\full-free-agent.exe"
 
 set "STATE_DIR=%AI_HOME%\state"
 set "SESSIONS_DIR=%SCRIPT_DIR%\.sessions"
@@ -110,15 +112,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$parts=New-Object System
 exit /b 0
 
 :run_agent
-where python >nul 2>nul
-if errorlevel 1 (
-    echo Command not found: python
-    echo Install Python or add it to PATH.
-    exit /b 1
+if not exist "%AGENT_BIN%" (
+    where full-free-agent >nul 2>nul
+    if errorlevel 1 (
+        echo Installed agent not found.
+        echo Expected: %AGENT_BIN%
+        echo Or install full-free-agent into PATH.
+        echo Build/install from: %AGENT_DIR%
+        exit /b 1
+    )
+    set "AGENT_BIN=full-free-agent"
 )
 call :build_prompt
-echo Using local Python agent: %AGENT_DIR%
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:PYTHONIOENCODING='utf-8'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $thought=Join-Path $env:SESSIONS_DIR 'thought.md'; python -B $env:AGENT_DIR --message-file $env:PROMPT_FILE --thought-file $thought --max-steps $env:AGENT_MAX_STEPS; exit $LASTEXITCODE"
+echo Using installed Python agent: %AGENT_BIN%
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:PYTHONIOENCODING='utf-8'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $thought=Join-Path $env:SESSIONS_DIR 'thought.md'; & $env:AGENT_BIN --message-file $env:PROMPT_FILE --thought-file $thought --max-steps $env:AGENT_MAX_STEPS; exit $LASTEXITCODE"
 set "EXIT_CODE=%ERRORLEVEL%"
 del "%PROMPT_FILE%" >nul 2>nul
 if "%EXIT_CODE%"=="0" >"%SESSION_COUNTER_FILE%" echo %NEXT_SESSION%

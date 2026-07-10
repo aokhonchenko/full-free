@@ -1,10 +1,42 @@
 # Python Agent
 
-Локальная программа агента с auto-discovered tools. `ai_home` не является Python-пакетом; агент запускается как директория:
+Локальная программа агента с auto-discovered tools. Проект упаковывается и устанавливается именно из этой директории:
 
 ```bash
-python ai_home/projects/agent --message "wake up"
+cd ai_home/projects/agent
+python -m build
+pip install --force-reinstall dist/full_free_agent-*.whl
 ```
+
+После установки запускайте стабильную копию из Python-окружения:
+
+```bash
+full-free-agent --message "wake up"
+```
+
+Основной запуск сессий из корня репозитория должен идти через `run_ai`:
+
+```bash
+run_ai.bat compatible
+```
+
+или в shell:
+
+```bash
+./run_ai.sh compatible
+```
+
+`run_ai` использует установленный entrypoint `full-free-agent` из `ai_home/projects/agent/.venv`, если он есть, и не запускает агент напрямую из исходной директории.
+
+Так агент использует установленный wheel из `site-packages`, а не текущие исходники в рабочей директории. Если ИИ позже изменит файлы в `ai_home/projects/agent` и временно сломает их, уже установленный `full-free-agent` продолжит работать до следующей явной переустановки.
+
+Не устанавливайте агент через editable-режим:
+
+```bash
+pip install -e .
+```
+
+Editable-установка ссылается на рабочую директорию и снова делает запуск зависимым от текущих правок.
 
 ## Tool Layout
 
@@ -51,7 +83,14 @@ AGENT_MAX_TOKENS=4096
 
 ## Run
 
-Из корня репозитория:
+Из установленного окружения:
+
+```bash
+full-free-agent --passport
+full-free-agent --message "wake up"
+```
+
+Локальный запуск из корня репозитория по-прежнему возможен:
 
 ```bash
 python ai_home/projects/agent --passport
@@ -61,10 +100,34 @@ python ai_home/projects/agent --message "wake up"
 Вызвать инструмент напрямую:
 
 ```bash
-python ai_home/projects/agent --tool read --payload '{"path":"README.md","start_line":1,"end_line":5}'
-python ai_home/projects/agent --tool write --payload '{"path":"tmp/agent.txt","mode":"write","content":"hello\n"}'
-python ai_home/projects/agent --tool terminal --payload '{"command":["python","--version"]}'
+full-free-agent --tool read --payload '{"path":"README.md","start_line":1,"end_line":5}'
+full-free-agent --tool write --payload '{"path":"tmp/agent.txt","mode":"write","content":"hello\n"}'
+full-free-agent --tool terminal --payload '{"command":["python","--version"]}'
 ```
 
-Полный журнал событий пишется в JSONL state-файл, а stdout показывает компактный итог шагов.
+Полный журнал событий пишется в JSONL state-файл только если передать `--state`. По умолчанию запись state отключена, а stdout показывает компактный итог шагов.
+
+## Build Notes
+
+Рабочая директория для сборки - `ai_home/projects/agent`.
+
+Рекомендуемый цикл обновления стабильного агента:
+
+```bash
+cd ai_home/projects/agent
+uv venv .venv
+uv pip install --python .venv\Scripts\python.exe .
+.venv\Scripts\full-free-agent.exe --passport
+```
+
+Для Unix-like shell:
+
+```bash
+cd ai_home/projects/agent
+uv venv .venv
+uv pip install --python .venv/bin/python .
+.venv/bin/full-free-agent --passport
+```
+
+Папки `logs/` и `state/` не нужны для установки агента и не должны заполняться сборочным процессом. Установка может создать только локальную инфраструктуру вроде `.venv/`, `.uv-cache/`, `build/` и `*.egg-info`; эти пути игнорируются Git.
 

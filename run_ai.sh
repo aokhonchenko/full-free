@@ -10,6 +10,8 @@ STATE_DIR="$AI_HOME/state"
 CONFIG_FILE="$AI_HOME/config.sh"
 COMPATIBLE_ENV_FILE="${COMPATIBLE_ENV_FILE:-$PROJECT_ENV_FILE}"
 AGENT_DIR="${AGENT_DIR:-$SCRIPT_DIR/ai_home/projects/agent}"
+AGENT_VENV_DIR="${AGENT_VENV_DIR:-$AGENT_DIR/.venv}"
+AGENT_BIN="${AGENT_BIN:-$AGENT_VENV_DIR/bin/full-free-agent}"
 SESSIONS_DIR="$SCRIPT_DIR/.sessions"
 SESSION_COUNTER_FILE="$STATE_DIR/session_counter.txt"
 SESSION_INTERVAL_MINUTES=15
@@ -96,12 +98,31 @@ copy_verified() {
 }
 
 run_with_agent() {
-    local python_bin="${PYTHON:-python3}"
-    if ! command -v "$python_bin" >/dev/null 2>&1; then
-        python_bin="python"
+    local agent_bin="$AGENT_BIN"
+    if [ ! -x "$agent_bin" ]; then
+        if command -v full-free-agent >/dev/null 2>&1; then
+            agent_bin="full-free-agent"
+        else
+            echo "Installed agent not found." >&2
+            echo "Expected: $AGENT_BIN" >&2
+            echo "Or install full-free-agent into PATH." >&2
+            echo "Build/install from: $AGENT_DIR" >&2
+            return 1
+        fi
     fi
-    if ! command -v "$python_bin" >/dev/null 2>&1; then
-        echo "Command not found: python/python3" >&2
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout_cmd=(timeout "${SESSION_TIMEOUT_SECONDS}s")
+    else
+        timeout_cmd=()
+    fi
+
+    if [ "${#timeout_cmd[@]}" -eq 0 ]; then
+        echo "Command not found: timeout; running without session timeout" >&2
+    fi
+
+    if [ ! -x "$agent_bin" ] && ! command -v "$agent_bin" >/dev/null 2>&1; then
+        echo "Installed agent is not executable: $agent_bin" >&2
         return 1
     fi
 
@@ -109,10 +130,10 @@ run_with_agent() {
     prompt_file=$(mktemp)
     build_prompt > "$prompt_file"
 
-    echo "Using local Python agent: $AGENT_DIR"
+    echo "Using installed Python agent: $agent_bin"
     (
         cd "$SCRIPT_DIR"
-        timeout "${SESSION_TIMEOUT_SECONDS}s" "$python_bin" -B "$AGENT_DIR" \
+        "${timeout_cmd[@]}" "$agent_bin" \
             --message-file "$prompt_file" \
             --thought-file "$SESSIONS_DIR/thought.md" \
             --max-steps "$AGENT_MAX_STEPS"

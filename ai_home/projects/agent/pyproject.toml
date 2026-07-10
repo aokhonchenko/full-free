@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "full-free-agent"
+version = "0.1.0"
+description = "Local OpenAI-compatible autonomous Python agent with bundled tools."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+full-free-agent = "agent:main"
+
+[tool.setuptools]
+py-modules = ["agent"]
+packages = [
+  "src",
+  "src.tools",
+  "src.tools.read",
+  "src.tools.write",
+  "src.tools.terminal",
+]
