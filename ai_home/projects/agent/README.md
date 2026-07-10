@@ -4,8 +4,40 @@
 
 ```bash
 cd ai_home/projects/agent
+python -m pip install --upgrade pip build
 python -m build
 pip install --force-reinstall dist/full_free_agent-*.whl
+```
+
+Если на `python -m build` появляется ошибка `No module named build`, значит в текущем Python не установлен пакет сборщика. Установите его командой:
+
+```bash
+python -m pip install --upgrade build
+```
+
+## Установка на Windows для `run_ai.bat`
+
+`run_ai.bat` по умолчанию ищет установленный агент здесь:
+
+```text
+ai_home\projects\agent\.venv\Scripts\full-free-agent.exe
+```
+
+Полный цикл сборки и установки в ожидаемое окружение:
+
+```powershell
+cd C:\_dev\own\ai\full-free\ai_home\projects\agent
+
+python -m pip install --upgrade pip build
+python -m build
+
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+$wheel = Get-ChildItem .\dist\full_free_agent-*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+.\.venv\Scripts\python.exe -m pip install --force-reinstall $wheel.FullName
+
+.\.venv\Scripts\full-free-agent.exe --passport
 ```
 
 После установки запускайте стабильную копию из Python-окружения:
